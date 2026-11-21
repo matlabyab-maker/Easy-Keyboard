@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -65,7 +66,7 @@ class EasyKeyboardService : InputMethodService() {
         val rows = if (persian) listOf(
             listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح"),
             listOf("ش", "س", "ی", "ب", "ل", "ا", "ت", "ن", "م", "ک", "گ"),
-            listOf("ظ", "ط", "ز", "ر", "ذ", "د", "پ", "و", "چ", "ژ", "ج")
+            listOf("ظ", "ط", "ز", "ر", "ذ", "د", "پ", "و", "ژ", "چ", "ج")
         ) else listOf(
             listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
             listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
@@ -82,7 +83,21 @@ class EasyKeyboardService : InputMethodService() {
             }
             chars.forEach { ch ->
                 val shown = if (!persian && caps) ch.uppercase() else if (!persian) ch.lowercase() else ch
-                row.addView(key(shown, false) { typeText(shown) }, LinearLayout.LayoutParams(0, -1, 1f))
+                val letterKey = key(shown, false) { typeText(shown) }
+                val variants = if (persian) when (ch) {
+                    "ا" -> listOf("آ", "أ", "إ")
+                    "و" -> listOf("ؤ")
+                    "ی" -> listOf("ئ", "ي", "ى")
+                    else -> emptyList()
+                } else emptyList()
+                if (variants.isNotEmpty()) {
+                    letterKey.setOnLongClickListener {
+                        showLetterVariants(letterKey, variants)
+                        true
+                    }
+                    letterKey.contentDescription = "$shown - hold for variants"
+                }
+                row.addView(letterKey, LinearLayout.LayoutParams(0, -1, 1f))
             }
             if (index == 0) {
                 row.addView(key("Backspace", true) {
@@ -101,25 +116,34 @@ class EasyKeyboardService : InputMethodService() {
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_HORIZONTAL
+            // Keep the requested physical left-to-right key order on RTL devices.
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
         }
-        val unit = (resources.displayMetrics.widthPixels / resources.displayMetrics.density / 14f).toInt().coerceAtLeast(dp(18))
-        fun addBottom(label: String, widthUnits: Float, action: () -> Unit) {
-            bottom.addView(key(label, true, action), LinearLayout.LayoutParams((unit * widthUnits).toInt(), -1))
+        // Match horizontal arrow keys to the Persian Shift key width (1.35 key units).
+        // The Persian third row has 11 letter keys plus Shift (1.35 units).
+        val screenWidthDp = resources.displayMetrics.widthPixels / resources.displayMetrics.density
+        val letterUnit = ((screenWidthDp - 4f) / 12.35f).coerceAtLeast(dp(18).toFloat())
+        val shiftWidth = (letterUnit * 1.35f).toInt()
+        val verticalArrowWidth = (letterUnit * 0.8f).toInt()
+        val bottomUnit = (resources.displayMetrics.widthPixels / resources.displayMetrics.density / 14f).toInt().coerceAtLeast(dp(18))
+        fun addBottom(label: String, widthPx: Int, action: () -> Unit) {
+            bottom.addView(key(label, true, action), LinearLayout.LayoutParams(widthPx, -1))
         }
-        addBottom("123", 1f) {
+        addBottom("123", bottomUnit) {
             Toast.makeText(this, "Number row is not available yet", Toast.LENGTH_SHORT).show()
         }
-        addBottom(if (persian) "EN" else "FA", 1f) {
+        addBottom(if (persian) "EN" else "FA", bottomUnit) {
             persian = !persian
             caps = false
             setInputView(buildKeyboard())
         }
-        addBottom("Space", 3f) { typeText(" ") }
-        addBottom("←", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_LEFT) }
-        addBottom("→", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_RIGHT) }
-        addBottom("↑", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_UP) }
-        addBottom("↓", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_DOWN) }
-        addBottom("😊", 1f) { typeText("😊") }
+        addBottom("Space", bottomUnit * 3) { typeText(" ") }
+        addBottom(".", bottomUnit) { typeText(".") }
+        addBottom("←", shiftWidth) { sendArrow(KeyEvent.KEYCODE_DPAD_LEFT) }
+        addBottom("→", shiftWidth) { sendArrow(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        addBottom("↑", verticalArrowWidth) { sendArrow(KeyEvent.KEYCODE_DPAD_UP) }
+        addBottom("↓", verticalArrowWidth) { sendArrow(KeyEvent.KEYCODE_DPAD_DOWN) }
+        addBottom("😊", bottomUnit) { typeText("😊") }
         outer.addView(bottom, LinearLayout.LayoutParams(-1, 58))
         return outer
     }
@@ -134,7 +158,7 @@ class EasyKeyboardService : InputMethodService() {
                 label.length >= 4 -> 12f
                 else -> 18f
             }
-            setTextColor(if (dark) Color.WHITE else Color.BLACK)
+            setTextColor(if (label == "Backspace") Color.rgb(105, 25, 25) else if (dark) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             minWidth = 0
@@ -142,15 +166,50 @@ class EasyKeyboardService : InputMethodService() {
             minHeight = 0
             minimumHeight = 0
             setPadding(0, 0, 0, 0)
-            background = GradientDrawable().apply {
-                setColor(if (dark) Color.rgb(28, 65, 111) else Color.rgb(247, 249, 252))
+            isSoundEffectsEnabled = false
+            fun makeKeyBackground(color: Int) = GradientDrawable().apply {
+                setColor(color)
                 cornerRadius = 7f
                 setStroke(1, Color.rgb(105, 116, 130))
+            }
+            val normalColor = if (label == "Backspace") Color.rgb(244, 185, 185) else if (dark) Color.rgb(28, 65, 111) else Color.rgb(247, 249, 252)
+            background = makeKeyBackground(normalColor)
+            setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> view.background = makeKeyBackground(Color.rgb(255, 220, 35))
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> view.background = makeKeyBackground(normalColor)
+                }
+                false
             }
             setOnClickListener { action() }
         }
 
-    private fun answerCurrentEditor() {
+
+
+    private fun showLetterVariants(anchor: View, variants: List<String>) {
+        val popupRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            setBackgroundColor(Color.rgb(190, 198, 208))
+        }
+        val popup = android.widget.PopupWindow(
+            popupRow,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            dp(56),
+            true
+        ).apply {
+            isOutsideTouchable = true
+            elevation = dp(8).toFloat()
+        }
+        variants.forEach { variant ->
+            popupRow.addView(key(variant, false) {
+                typeText(variant)
+                popup.dismiss()
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        }
+        popup.showAsDropDown(anchor, 0, -anchor.height - dp(60), Gravity.TOP or Gravity.START)
+    }
+\n    private fun answerCurrentEditor() {
         val connection = currentInputConnection ?: return
         val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
             ?: EditorInfo.IME_ACTION_UNSPECIFIED
