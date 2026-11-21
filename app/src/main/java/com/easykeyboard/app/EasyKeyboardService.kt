@@ -60,12 +60,12 @@ class EasyKeyboardService : InputMethodService() {
         )
         rows.forEachIndexed { index, chars ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            if(index == 2) row.addView(key("⇧", true) { caps = !caps; setInputView(buildKeyboard()) }, null, 1f)
+            if(index == 2) row.addView(key("⇧", true) { caps = !caps; setInputView(buildKeyboard()) }, LinearLayout.LayoutParams(0, -1, 1f))
             chars.forEach { ch ->
                 val shown = if (!persian && caps) ch.uppercase() else if (!persian) ch.lowercase() else ch
-                row.addView(key(shown, false) { typeText(shown) }, null, 1f)
+                row.addView(key(shown, false) { typeText(shown) }, LinearLayout.LayoutParams(0, -1, 1f))
             }
-            if(index == 0) row.addView(key("⌫", true) { currentInputConnection?.deleteSurroundingText(1,0) }, null, 1.55f)
+            if(index == 0) row.addView(key("⌫", true) { currentInputConnection?.deleteSurroundingText(1,0) }, LinearLayout.LayoutParams(0, -1, 1.55f))
             if(index == 1) row.addView(key("↵", true) { currentInputConnection?.commitText("\n",1) }, null, 1.55f)
             outer.addView(row, LinearLayout.LayoutParams(-1, 61))
         }
@@ -78,7 +78,7 @@ class EasyKeyboardService : InputMethodService() {
                     "123" -> Toast.makeText(this, "ردیف اعداد در نسخه بعدی", Toast.LENGTH_SHORT).show()
                     else -> typeText("😊")
                 }
-            }, null, if(label == "فاصله") 3f else 1f)
+            }, LinearLayout.LayoutParams(0, -1, if(label == "فاصله") 3f else 1f))
         }
         outer.addView(bottom, LinearLayout.LayoutParams(-1, 58))
         return outer
