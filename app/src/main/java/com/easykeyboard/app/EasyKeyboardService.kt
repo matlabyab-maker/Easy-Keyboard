@@ -163,6 +163,7 @@ class EasyKeyboardService : InputMethodService() {
         val sameAsLetter = letterUnit.toInt()
         val shiftWidth = (letterUnit * 1.35f).toInt()
         val arrowWidth = (letterUnit * 0.95f).toInt()
+      ```kotlin
         fun addBottom(label: String, widthPx: Int, action: () -> Unit, longAction: (() -> Unit)? = null) {
             val b = key(label, true, action)
             if (longAction != null) b.setOnLongClickListener { longAction(); true }
@@ -176,8 +177,8 @@ class EasyKeyboardService : InputMethodService() {
             persian = !persian; caps = false; setInputView(buildKeyboard())
         })
         addBottom("اعراب", (letterUnit * 1.35f).toInt(), { showChoices(bottom, listOf("َ","ِ","ُ","ْ","ّ","ً","ٍ","ٌ","ٰ","ء","ٔ","‌","ـ")) })
-        addBottom("Space", (letterUnit * 2.2f).toInt()) { typeText(" ") }
-        addBottom(".", sameAsLetter) { typeText(".") }
+        addBottom("Space", (letterUnit * 2.2f).toInt(), { typeText(" ") })
+        addBottom(".", sameAsLetter, { typeText(".") })
         listOf(Triple("←", KeyEvent.KEYCODE_DPAD_LEFT, shiftWidth),
             Triple("→", KeyEvent.KEYCODE_DPAD_RIGHT, shiftWidth),
             Triple("↑", KeyEvent.KEYCODE_DPAD_UP, arrowWidth),
@@ -188,6 +189,7 @@ class EasyKeyboardService : InputMethodService() {
         }
         addBottom("😊", arrowWidth, { showEmojiPicker() })
         outer.addView(bottom, LinearLayout.LayoutParams(-1, dp(58)))
+```
         return outer
     }
 
