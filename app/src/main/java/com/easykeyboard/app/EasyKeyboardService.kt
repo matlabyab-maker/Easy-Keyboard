@@ -176,8 +176,8 @@ class EasyKeyboardService : InputMethodService() {
         addBottom(if (persian) "EN" else "FA", sameAsLetter, {
             persian = !persian; caps = false; setInputView(buildKeyboard())
         })
-        addBottom("اعراب", (letterUnit * 1.35f).toInt(), { showChoices(bottom, listOf("َ","ِ","ُ","ْ","ّ","ً","ٍ","ٌ","ٰ","ء","ٔ","‌","ـ")) })
-        addBottom("Space", (letterUnit * 2.2f).toInt(), { typeText(" ") })
+                addBottom("Space", (letterUnit * 2.2f).toInt(), { typeText(" ") })
+        addBottom(".", sameAsLetter, { typeText(".") })
         addBottom(".", sameAsLetter, { typeText(".") })
         listOf(Triple("←", KeyEvent.KEYCODE_DPAD_LEFT, shiftWidth),
             Triple("→", KeyEvent.KEYCODE_DPAD_RIGHT, shiftWidth),
