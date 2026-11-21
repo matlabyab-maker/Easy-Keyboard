@@ -193,7 +193,7 @@ addBottom("😊", arrowWidth, { showEmojiPicker() })
         enableRepeat(b) { sendArrow(code) }
         bottom.addView(b, LinearLayout.LayoutParams(width, -1))
     }
-    addBottom("😊", arrowWidth) { showEmojiPicker() }
+    addBottom("😊", arrowWidth, { showEmojiPicker() })
     outer.addView(bottom, LinearLayout.LayoutParams(-1, dp(58)))
 return outer
         return outer
