@@ -1,16 +1,20 @@
 package com.easykeyboard.app
 
-import android.inputmethodservice.InputMethodService
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.Toast
+import android.inputmethodservice.InputMethodService
 
 class EasyKeyboardService : InputMethodService() {
     private var persian = true
@@ -26,60 +30,96 @@ class EasyKeyboardService : InputMethodService() {
             setPadding(2, 2, 2, 2)
             setBackgroundColor(Color.rgb(190, 198, 208))
         }
-        val toolbarScroll = ScrollView(this).apply { isFillViewport = true }
+
+        // One horizontally scrolling toolbar. Answer stays at the far right,
+        // with File immediately to its left.
+        val toolbarScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            isFillViewport = false
+        }
         val toolbar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("«", "»", "؟", "←", "→", "↑", "↓", "UnDo", "ReDo", "File", "Answer").forEach { label ->
+        val toolbarKeys = listOf("«", "»", "؟", "Undo", "Redo", "Past", "Copy", "File", "Answer")
+        toolbarKeys.forEach { label ->
             toolbar.addView(key(label, true) {
-                when(label) {
-                    "UnDo" -> undo()
-                    "ReDo" -> redo()
+                when (label) {
+                    "Undo" -> undo()
+                    "Redo" -> redo()
+                    "Past" -> pasteFromClipboard()
+                    "Copy" -> copySelection()
                     "File" -> {
-                        val i = android.content.Intent(this, FilePickerActivity::class.java).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(i)
+                        val intent = android.content.Intent(this, FilePickerActivity::class.java)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
                     }
-                    "Answer" -> {
-                        val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_UNSPECIFIED
-                        if (action != EditorInfo.IME_ACTION_UNSPECIFIED && action != EditorInfo.IME_ACTION_NONE) currentInputConnection?.performEditorAction(action)
-                        else currentInputConnection?.commitText("\n", 1)
-                    }
+                    "Answer" -> answerCurrentEditor()
                     else -> currentInputConnection?.commitText(label, 1)
                 }
-            }, LinearLayout.LayoutParams(0, -1, if(label == "Answer") 2.1f else 1f))
+            }, LinearLayout.LayoutParams(
+                if (label == "Answer") dp(82) else dp(if (label.length > 4) 64 else 48),
+                -1
+            ))
         }
         toolbarScroll.addView(toolbar)
         outer.addView(toolbarScroll, LinearLayout.LayoutParams(-1, 48))
 
         val rows = if (persian) listOf(
-            listOf("ض","ص","ث","ق","ف","غ","ع","ه","خ","ح"),
-            listOf("ش","س","ی","ب","ل","ا","ت","ن","م","ک","گ"),
-            listOf("ظ","ط","ز","ر","ذ","د","پ","و","چ")
+            listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح"),
+            listOf("ش", "س", "ی", "ب", "ل", "ا", "ت", "ن", "م", "ک", "گ"),
+            listOf("ظ", "ط", "ز", "ر", "ذ", "د", "پ", "و", "چ", "ژ", "ج")
         ) else listOf(
-            listOf("Q","W","E","R","T","Y","U","I","O","P"),
-            listOf("A","S","D","F","G","H","J","K","L"),
-            listOf("Z","X","C","V","B","N","M")
+            listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
+            listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
+            listOf("Z", "X", "C", "V", "B", "N", "M")
         )
+
         rows.forEachIndexed { index, chars ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            if(index == 2) row.addView(key("⇧", true) { caps = !caps; setInputView(buildKeyboard()) }, LinearLayout.LayoutParams(0, -1, 1f))
+            if (index == 2) {
+                row.addView(key("Shift", true) {
+                    caps = !caps
+                    setInputView(buildKeyboard())
+                }, LinearLayout.LayoutParams(0, -1, 1.35f))
+            }
             chars.forEach { ch ->
                 val shown = if (!persian && caps) ch.uppercase() else if (!persian) ch.lowercase() else ch
                 row.addView(key(shown, false) { typeText(shown) }, LinearLayout.LayoutParams(0, -1, 1f))
             }
-            if(index == 0) row.addView(key("⌫", true) { currentInputConnection?.deleteSurroundingText(1,0) }, LinearLayout.LayoutParams(0, -1, 1.55f))
-            if(index == 1) row.addView(key("↵", true) { currentInputConnection?.commitText("\n",1) }, LinearLayout.LayoutParams(0, -1, 1.55f))
+            if (index == 0) {
+                row.addView(key("Backspace", true) {
+                    currentInputConnection?.deleteSurroundingText(1, 0)
+                }, LinearLayout.LayoutParams(0, -1, 1.8f))
+            }
+            if (index == 1) {
+                row.addView(key("Enter", true) { answerCurrentEditor() }, LinearLayout.LayoutParams(0, -1, 1.8f))
+            }
             outer.addView(row, LinearLayout.LayoutParams(-1, 61))
         }
-        val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("123", "🌐", if(persian) "Fa" else "En", "فاصله", "😊").forEach { label ->
-            bottom.addView(key(label, true) {
-                when(label) {
-                    "🌐", "Fa", "En" -> { persian = !persian; setInputView(buildKeyboard()) }
-                    "فاصله" -> typeText(" ")
-                    "123" -> Toast.makeText(this, "ردیف اعداد در نسخه بعدی", Toast.LENGTH_SHORT).show()
-                    else -> typeText("😊")
-                }
-            }, LinearLayout.LayoutParams(0, -1, if(label == "فاصله") 3f else 1f))
+
+        // Bottom-row keys are half their previous proportional width.
+        // The row remains 58dp high; arrows are placed after Space in the
+        // requested left/right/up/down order.
+        val bottom = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_HORIZONTAL
         }
+        val unit = (resources.displayMetrics.widthPixels / resources.displayMetrics.density / 14f).toInt().coerceAtLeast(dp(18))
+        fun addBottom(label: String, widthUnits: Float, action: () -> Unit) {
+            bottom.addView(key(label, true, action), LinearLayout.LayoutParams((unit * widthUnits).toInt(), -1))
+        }
+        addBottom("123", 1f) {
+            Toast.makeText(this, "Number row is not available yet", Toast.LENGTH_SHORT).show()
+        }
+        addBottom(if (persian) "EN" else "FA", 1f) {
+            persian = !persian
+            caps = false
+            setInputView(buildKeyboard())
+        }
+        addBottom("Space", 3f) { typeText(" ") }
+        addBottom("←", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_LEFT) }
+        addBottom("→", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        addBottom("↑", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_UP) }
+        addBottom("↓", 0.5f) { sendArrow(KeyEvent.KEYCODE_DPAD_DOWN) }
+        addBottom("😊", 1f) { typeText("😊") }
         outer.addView(bottom, LinearLayout.LayoutParams(-1, 58))
         return outer
     }
@@ -88,34 +128,86 @@ class EasyKeyboardService : InputMethodService() {
         Button(this).apply {
             text = label
             isAllCaps = false
-            textSize = if(label.length > 5) 12f else 18f
-            setTextColor(if(dark) Color.WHITE else Color.BLACK)
+            textSize = when {
+                label.length >= 8 -> 9f
+                label.length >= 5 -> 11f
+                label.length >= 4 -> 12f
+                else -> 18f
+            }
+            setTextColor(if (dark) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            minWidth = 0; minimumWidth = 0
-            minHeight = 0; minimumHeight = 0
-            setPadding(0,0,0,0)
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(0, 0, 0, 0)
             background = GradientDrawable().apply {
-                setColor(if(dark) Color.rgb(28,65,111) else Color.rgb(247,249,252))
+                setColor(if (dark) Color.rgb(28, 65, 111) else Color.rgb(247, 249, 252))
                 cornerRadius = 7f
-                setStroke(1, Color.rgb(105,116,130))
+                setStroke(1, Color.rgb(105, 116, 130))
             }
             setOnClickListener { action() }
         }
 
-    private fun typeText(s: String) {
+    private fun answerCurrentEditor() {
+        val connection = currentInputConnection ?: return
+        val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+            ?: EditorInfo.IME_ACTION_UNSPECIFIED
+
+        // Prefer the action requested by the focused editor (Send/Go/Search/Done).
+        if (action != EditorInfo.IME_ACTION_UNSPECIFIED && action != EditorInfo.IME_ACTION_NONE) {
+            if (connection.performEditorAction(action)) return
+        }
+        // Some web editors expose no IME action. Try Send, then a real Enter key event.
+        if (connection.performEditorAction(EditorInfo.IME_ACTION_SEND)) return
+        val now = System.currentTimeMillis()
+        connection.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0))
+        connection.sendKeyEvent(KeyEvent(System.currentTimeMillis(), now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER, 0))
+    }
+
+    private fun sendArrow(keyCode: Int) {
+        val connection = currentInputConnection ?: return
+        val now = System.currentTimeMillis()
+        connection.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+        connection.sendKeyEvent(KeyEvent(System.currentTimeMillis(), now, KeyEvent.ACTION_UP, keyCode, 0))
+    }
+
+    private fun copySelection() {
+        val selected = currentInputConnection?.getSelectedText(0)?.toString()
+        if (selected.isNullOrEmpty()) {
+            Toast.makeText(this, "Select text first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Copied text", selected))
+    }
+
+    private fun pasteFromClipboard() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (!text.isNullOrEmpty()) typeText(text)
+    }
+
+    private fun typeText(text: String) {
         currentInputConnection?.let {
-            undoStack.add(s); redoStack.clear(); it.commitText(s, 1)
+            undoStack.add(text)
+            redoStack.clear()
+            it.commitText(text, 1)
         }
     }
+
     private fun undo() {
         val last = undoStack.removeLastOrNull() ?: return
         currentInputConnection?.deleteSurroundingText(last.length, 0)
         redoStack.add(last)
     }
+
     private fun redo() {
         val last = redoStack.removeLastOrNull() ?: return
         currentInputConnection?.commitText(last, 1)
         undoStack.add(last)
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 }

@@ -11,3 +11,10 @@ Install the APK, open Easy-Keyboard, tap **فعال‌سازی صفحه‌کلی
 ## Notes
 The File button opens Android's document picker and then the system share sheet. Undo/Redo track text entered through this keyboard in the current session. This initial source package has not been compiled or device-tested.
 \n\n## GitHub Actions SDK setup\nThe workflow uses the runner's preinstalled `sdkmanager` directly and installs only `platform-tools`, `platforms;android-35`, and `build-tools;35.0.0`. It intentionally avoids the obsolete SDK `tools` package.\n
+## Keyboard layout update
+
+- The toolbar has one language switch (EN/FA), plus Undo, Redo, Past, Copy, File, and Answer.
+- Answer and the Enter key use the focused editor's IME action when available, then fall back to an Enter key event.
+- Persian layout includes ژ and ج.
+- Arrow keys are on the right side of Space in left/right/up/down order.
+- Bottom-row key widths are reduced while the row height remains 58dp.
