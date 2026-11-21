@@ -184,8 +184,6 @@ class EasyKeyboardService : InputMethodService() {
             setOnClickListener { action() }
         }
 
-
-
     private fun showLetterVariants(anchor: View, variants: List<String>) {
         val popupRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -209,7 +207,8 @@ class EasyKeyboardService : InputMethodService() {
         }
         popup.showAsDropDown(anchor, 0, -anchor.height - dp(60), Gravity.TOP or Gravity.START)
     }
-\n    private fun answerCurrentEditor() {
+
+    private fun answerCurrentEditor() {
         val connection = currentInputConnection ?: return
         val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
             ?: EditorInfo.IME_ACTION_UNSPECIFIED
