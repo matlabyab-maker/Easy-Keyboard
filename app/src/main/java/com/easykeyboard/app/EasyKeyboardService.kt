@@ -177,10 +177,12 @@ class EasyKeyboardService : InputMethodService() {
         caps = false
         setInputView(buildKeyboard())
     })
-    addBottom("Space", (letterUnit * 2.2f).toInt()) { typeText(" ") }
-    addBottom(".", sameAsLetter) { typeText(".") }
-    addBottom("○", sameAsLetter) { typeText("○") }
-    addBottom("؟", sameAsLetter) { typeText("؟") }
+    addBottom("Space", (letterUnit * 2.2f).toInt(), { typeText(" ") })
+addBottom(".", sameAsLetter, { typeText(".") })
+addBottom("○", sameAsLetter, { typeText("○") })
+addBottom("؟", sameAsLetter, { typeText("؟") })
+
+addBottom("😊", arrowWidth, { showEmojiPicker() })
     listOf(
         Triple("←", KeyEvent.KEYCODE_DPAD_LEFT, shiftWidth),
         Triple("→", KeyEvent.KEYCODE_DPAD_RIGHT, shiftWidth),
