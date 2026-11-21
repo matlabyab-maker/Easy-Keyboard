@@ -44,7 +44,7 @@ class EasyKeyboardService : InputMethodService() {
                     }
                     else -> currentInputConnection?.commitText(label, 1)
                 }
-            }, if(label == "Answer") 2.1f else 1f)
+            }, LinearLayout.LayoutParams(0, -1, if(label == "Answer") 2.1f else 1f))
         }
         toolbarScroll.addView(toolbar)
         outer.addView(toolbarScroll, LinearLayout.LayoutParams(-1, 48))
@@ -66,7 +66,7 @@ class EasyKeyboardService : InputMethodService() {
                 row.addView(key(shown, false) { typeText(shown) }, LinearLayout.LayoutParams(0, -1, 1f))
             }
             if(index == 0) row.addView(key("⌫", true) { currentInputConnection?.deleteSurroundingText(1,0) }, LinearLayout.LayoutParams(0, -1, 1.55f))
-            if(index == 1) row.addView(key("↵", true) { currentInputConnection?.commitText("\n",1) }, null, 1.55f)
+            if(index == 1) row.addView(key("↵", true) { currentInputConnection?.commitText("\n",1) }, LinearLayout.LayoutParams(0, -1, 1.55f))
             outer.addView(row, LinearLayout.LayoutParams(-1, 61))
         }
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
